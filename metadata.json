@@ -1,0 +1,6 @@
+{
+  "name": "Premier Vendor Events",
+  "description": "A modern portfolio and management dashboard for a national event organizer managing premium food festivals, farmers markets, and family entertainment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
