@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, MapPin, Clock, Mail, User, Info, DollarSign, CheckCircle2, ShieldAlert, Award, Star, Share2, Sparkles, MessageSquare, Download } from 'lucide-react';
-import { EventModel, EventType } from '../types';
+import { EventModel, EventType, AppUser } from '../types';
 import { EVENT_TYPE_LABELS, EVENT_TYPE_BG_COLORS } from './EventCard';
 import { EVENT_TYPE_TEMPLATES } from '../data';
 
@@ -8,20 +8,22 @@ interface EventModalProps {
   event: EventModel;
   onClose: () => void;
   initialTab?: 'details' | 'vendor';
+  currentUser?: AppUser | null;
 }
 
 export default function EventModal({
   event,
   onClose,
-  initialTab = 'details'
+  initialTab = 'details',
+  currentUser = null
 }: EventModalProps) {
   const [activeTab, setActiveTab] = useState<'details' | 'vendor'>(initialTab);
   
-  // Vendor Inquiry Form State
-  const [vendorName, setVendorName] = useState('');
-  const [businessName, setBusinessName] = useState('');
+  // Vendor Inquiry Form State (Prefilled if logged in as vendor!)
+  const [vendorName, setVendorName] = useState(currentUser?.role === 'vendor' ? currentUser.name : '');
+  const [businessName, setBusinessName] = useState(currentUser?.role === 'vendor' ? (currentUser.businessName || '') : '');
   const [vendorType, setVendorType] = useState('food_truck');
-  const [vendorEmail, setVendorEmail] = useState('');
+  const [vendorEmail, setVendorEmail] = useState(currentUser?.role === 'vendor' ? currentUser.email : '');
   const [vendorPhone, setVendorPhone] = useState('');
   const [vendorComments, setVendorComments] = useState('');
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -54,6 +56,35 @@ export default function EventModal({
     }
 
     setIsSubmitting(true);
+    
+    // Save application to localStorage persistently
+    const newApp = {
+      id: `app-${Date.now()}`,
+      eventId: event.id,
+      eventTitle: event.title,
+      eventDate: event.date,
+      vendorName: vendorName.trim(),
+      businessName: businessName.trim(),
+      vendorType: vendorType,
+      vendorEmail: vendorEmail.trim().toLowerCase(),
+      vendorPhone: vendorPhone.trim(),
+      vendorComments: vendorComments.trim(),
+      status: 'pending',
+      submittedAt: new Date().toISOString()
+    };
+
+    // Load existing
+    const existingAppsStr = localStorage.getItem('premier_applications');
+    let existingApps = [];
+    if (existingAppsStr) {
+      try {
+        existingApps = JSON.parse(existingAppsStr);
+      } catch {
+        existingApps = [];
+      }
+    }
+    existingApps.push(newApp);
+    localStorage.setItem('premier_applications', JSON.stringify(existingApps));
     
     // Simulate real database submission with a premium visual loader
     setTimeout(() => {

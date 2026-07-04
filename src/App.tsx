@@ -3,22 +3,30 @@ import {
   Calendar, MapPin, Search, Filter, Shield, 
   Globe, Info, FileSpreadsheet, Plus, HelpCircle, 
   Map, Sparkles, Star, ChevronRight, MessageSquare, 
-  CheckCircle, Mail, Award, Landmark, Play, AlertCircle, RefreshCw
+  CheckCircle, Mail, Award, Landmark, Play, AlertCircle, RefreshCw, FileText
 } from 'lucide-react';
 
-import { EventModel, EventType, UserRole } from './types';
+import { EventModel, EventType, UserRole, AppUser } from './types';
 import { INITIAL_EVENTS } from './data';
 import Header from './components/Header';
 import StatsPanel from './components/StatsPanel';
 import EventCard, { EVENT_TYPE_LABELS } from './components/EventCard';
 import EventModal from './components/EventModal';
 import AdminDashboard from './components/AdminDashboard';
+import AuthModal from './components/AuthModal';
+import VendorPortal from './components/VendorPortal';
 
 export default function App() {
   // Master state
   const [events, setEvents] = useState<EventModel[]>([]);
   const [role, setRole] = useState<UserRole>('public');
   
+  // Authentication states
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+  const [authModalRole, setAuthModalRole] = useState<'admin' | 'vendor'>('vendor');
+
   // Active modal/drawer control
   const [selectedEvent, setSelectedEvent] = useState<EventModel | null>(null);
   const [selectedEventTab, setSelectedEventTab] = useState<'details' | 'vendor'>('details');
@@ -26,6 +34,8 @@ export default function App() {
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [showBulkPanel, setShowBulkPanel] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,6 +45,7 @@ export default function App() {
 
   // Load from local storage on startup
   useEffect(() => {
+    // 1. Events database
     const saved = localStorage.getItem('premier_vendor_events');
     if (saved) {
       try {
@@ -46,7 +57,29 @@ export default function App() {
       setEvents(INITIAL_EVENTS);
       localStorage.setItem('premier_vendor_events', JSON.stringify(INITIAL_EVENTS));
     }
+
+    // 2. Active Session
+    const savedUser = localStorage.getItem('premier_current_user');
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser) as AppUser;
+        setCurrentUser(parsedUser);
+        setRole(parsedUser.role);
+      } catch {
+        setCurrentUser(null);
+        setRole('public');
+      }
+    }
   }, []);
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setRole('public');
+    localStorage.removeItem('premier_current_user');
+    setEditingEvent(null);
+    setCreatingEvent(false);
+    alert('Logged out successfully.');
+  };
 
   // Save changes helper
   const saveEventsToStorage = (updatedList: EventModel[]) => {
@@ -162,6 +195,7 @@ export default function App() {
       {/* Header */}
       <Header 
         currentRole={role}
+        currentUser={currentUser}
         onRoleChange={(targetRole) => {
           setRole(targetRole);
           // Auto close active form drawers when toggling roles
@@ -170,6 +204,12 @@ export default function App() {
         }}
         onOpenQuickGuidelines={() => setShowGuidelines(true)}
         onOpenSampleExporter={() => setShowBulkPanel(true)}
+        onOpenAuth={(mode, targetRole) => {
+          setAuthModalMode(mode);
+          setAuthModalRole(targetRole);
+          setShowAuthModal(true);
+        }}
+        onLogout={handleLogout}
       />
 
       {/* Hero Showcase Section */}
@@ -214,16 +254,13 @@ export default function App() {
             {role === 'public' && (
               <button
                 onClick={() => {
-                  setRole('admin');
-                  setCreatingEvent(true);
-                  // Smooth scroll to form
-                  setTimeout(() => {
-                    document.getElementById('admin-dashboard-container')?.scrollIntoView({ behavior: 'smooth' });
-                  }, 200);
+                  setAuthModalMode('login');
+                  setAuthModalRole('admin');
+                  setShowAuthModal(true);
                 }}
                 className="text-xs text-amber-500 hover:text-amber-400 font-mono underline flex items-center gap-1 hover:gap-2 transition"
               >
-                <span>Access Admin Demo</span>
+                <span>Organizer Command Portal</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             )}
@@ -350,6 +387,16 @@ export default function App() {
           </section>
         )}
 
+        {/* VENDOR CONTROL CENTER (Merchant Portal - Rendered only for Vendors) */}
+        {role === 'vendor' && currentUser && (
+          <section className="border-t border-slate-850 pt-8 animate-fade-in">
+            <VendorPortal 
+              currentUser={currentUser}
+              onClose={() => setRole('public')}
+            />
+          </section>
+        )}
+
         {/* SECTION 1: UPCOMING LIVE CAMPAIGNS (Separated Group) */}
         <section className="space-y-6 pt-4" id="upcoming-section">
           <div className="flex flex-col sm:flex-row sm:items-baseline justify-between border-b border-slate-800 pb-3 gap-2">
@@ -454,6 +501,89 @@ export default function App() {
           )}
         </section>
 
+        {/* SECTION 3: ABOUT US (Rich, Brand-Aligned Narrative) */}
+        <section className="mt-12 pt-10 border-t border-slate-800/80" id="about-section">
+          <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/85 rounded-2xl p-6 sm:p-10 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              
+              {/* Left Column: Title & Key Pillars */}
+              <div className="lg:col-span-5 space-y-6">
+                <div>
+                  <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider font-mono">
+                    OUR MISSION
+                  </span>
+                  <h2 className="text-3xl font-extrabold font-display tracking-tight text-white mt-3">
+                    About Us
+                  </h2>
+                  <p className="text-xs text-amber-400 font-mono mt-1">
+                    Welcome to Premier Vendor Events.
+                  </p>
+                </div>
+
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Premier Vendor Events connects businesses, food vendors, artisans, and entrepreneurs with high-quality festivals, markets, and community events across the United States. Our mission is to help vendors grow their businesses by providing opportunities to showcase their products and services at well-organized events.
+                </p>
+
+                {/* Key value badges */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-start space-x-3">
+                    <div className="bg-amber-500/10 text-amber-400 p-1.5 rounded-lg mt-0.5">
+                      <Shield className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-white">Reliable Support</h4>
+                      <p className="text-[11px] text-slate-400">Clear communication and planning from application to event day.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3">
+                    <div className="bg-amber-500/10 text-amber-400 p-1.5 rounded-lg mt-0.5">
+                      <Globe className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-white">National Scale</h4>
+                      <p className="text-[11px] text-slate-400">High-volume opportunities in premier regional locations coast-to-coast.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Narrative Card */}
+              <div className="lg:col-span-7 bg-slate-950/80 border border-slate-850 p-6 sm:p-8 rounded-xl space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">Commitment to Excellence</span>
+                </div>
+
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  We are committed to creating successful events that bring together vendors, organizers, and local communities. Our team works closely with event organizers to provide a smooth vendor registration process, clear communication, and reliable support from application through event day.
+                </p>
+
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Whether you're a first-time vendor or an established business, our goal is to make participating in events simple, professional, and rewarding.
+                </p>
+
+                <div className="pt-4 border-t border-slate-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-slate-400">Thank you for choosing Premier Vendor Events.</p>
+                    <p className="text-[11px] text-amber-400 font-mono">We look forward to helping your business succeed at every event.</p>
+                  </div>
+                  
+                  <button 
+                    onClick={() => setShowGuidelines(true)}
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs px-4 py-2 rounded-xl font-bold transition shadow-lg shadow-amber-500/10 whitespace-nowrap self-stretch sm:self-auto text-center"
+                  >
+                    View Guidelines
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
       </main>
 
       {/* FOOTER */}
@@ -505,6 +635,10 @@ export default function App() {
           <div className="flex space-x-4 mt-4 sm:mt-0">
             <button onClick={() => setShowGuidelines(true)} className="hover:text-white transition">Vendor Code of Conduct</button>
             <span>•</span>
+            <button onClick={() => setShowPrivacyPolicy(true)} className="hover:text-white transition">Privacy Policy</button>
+            <span>•</span>
+            <button onClick={() => setShowTerms(true)} className="hover:text-white transition">Terms & Conditions</button>
+            <span>•</span>
             <button onClick={() => setShowBulkPanel(true)} className="hover:text-white transition">Scale Tools (JSON)</button>
           </div>
         </div>
@@ -515,7 +649,22 @@ export default function App() {
         <EventModal 
           event={selectedEvent}
           initialTab={selectedEventTab}
+          currentUser={currentUser}
           onClose={() => setSelectedEvent(null)}
+        />
+      )}
+
+      {/* AUTHENTICATION MODAL */}
+      {showAuthModal && (
+        <AuthModal 
+          initialMode={authModalMode}
+          initialRole={authModalRole}
+          onClose={() => setShowAuthModal(false)}
+          onLoginSuccess={(user) => {
+            setCurrentUser(user);
+            setRole(user.role);
+            localStorage.setItem('premier_current_user', JSON.stringify(user));
+          }}
         />
       )}
 
@@ -596,6 +745,141 @@ export default function App() {
                 className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs px-5 py-2.5 rounded-xl font-bold transition shadow-lg shadow-amber-500/10"
               >
                 Acknowledge & Close
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2.5: PRIVACY POLICY */}
+      {showPrivacyPolicy && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fade-in" id="privacy-policy-modal">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+            
+            <button 
+              onClick={() => setShowPrivacyPolicy(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white text-lg font-bold p-1 hover:bg-slate-800 rounded-lg transition"
+            >
+              &times;
+            </button>
+
+            <div className="flex items-center space-x-3 border-b border-slate-800 pb-4 mb-6">
+              <div className="bg-amber-500 text-slate-950 p-2 rounded-xl">
+                <Shield className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Privacy Policy</h3>
+                <p className="text-xs text-slate-400 font-mono uppercase tracking-wider">Premier Vendor Events</p>
+              </div>
+            </div>
+
+            <div className="space-y-5 text-xs text-slate-300 leading-relaxed overflow-y-auto max-h-[60vh] pr-2">
+              
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-3">
+                <p className="text-slate-200 font-medium">
+                  Premier Vendor Events values your privacy.
+                </p>
+                <p className="text-slate-400">
+                  We collect only the information necessary to process vendor applications, communicate with applicants, and improve our services. This may include your name, business name, email address, phone number, and payment information.
+                </p>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-2">
+                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider font-mono">Information Sharing</h4>
+                <p className="text-slate-400">
+                  Your personal information is never sold to third parties. Information is shared only when necessary to process applications, comply with legal requirements, or provide requested services.
+                </p>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-2">
+                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider font-mono">Consent & Questions</h4>
+                <p className="text-slate-400">
+                  By using our website, you agree to this Privacy Policy. If you have questions about how your information is handled, please contact us through the contact information provided on our website.
+                </p>
+              </div>
+
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-800 flex justify-end">
+              <button 
+                onClick={() => setShowPrivacyPolicy(false)}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs px-5 py-2.5 rounded-xl font-bold transition shadow-lg shadow-amber-500/10"
+              >
+                Accept & Close
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2.6: TERMS & CONDITIONS */}
+      {showTerms && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fade-in" id="terms-modal">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+            
+            <button 
+              onClick={() => setShowTerms(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white text-lg font-bold p-1 hover:bg-slate-800 rounded-lg transition"
+            >
+              &times;
+            </button>
+
+            <div className="flex items-center space-x-3 border-b border-slate-800 pb-4 mb-6">
+              <div className="bg-amber-500 text-slate-950 p-2 rounded-xl">
+                <FileText className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Terms & Conditions</h3>
+                <p className="text-xs text-slate-400 font-mono uppercase tracking-wider">Premier Vendor Events</p>
+              </div>
+            </div>
+
+            <div className="space-y-5 text-xs text-slate-300 leading-relaxed overflow-y-auto max-h-[60vh] pr-2">
+              
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-3">
+                <p className="text-slate-200 font-medium">
+                  By using the Premier Vendor Events website, you agree to comply with these Terms & Conditions.
+                </p>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-2">
+                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider font-mono">Application & Acceptance</h4>
+                <p className="text-slate-400">
+                  Submitting a vendor application does not guarantee acceptance into an event. Applications are reviewed based on event requirements and availability.
+                </p>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-2">
+                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider font-mono">Fees, Payments & Cancellation</h4>
+                <p className="text-slate-400">
+                  Vendor fees, payment deadlines, cancellation policies, and event-specific requirements will be communicated before participation is confirmed.
+                </p>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-2">
+                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider font-mono">Updates & Revisions</h4>
+                <p className="text-slate-400">
+                  Premier Vendor Events reserves the right to update these terms at any time without prior notice.
+                </p>
+              </div>
+
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-2">
+                <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider font-mono">Support</h4>
+                <p className="text-slate-400">
+                  For questions regarding these terms, please contact our support team.
+                </p>
+              </div>
+
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-800 flex justify-end">
+              <button 
+                onClick={() => setShowTerms(false)}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs px-5 py-2.5 rounded-xl font-bold transition shadow-lg shadow-amber-500/10"
+              >
+                Agree & Close
               </button>
             </div>
 

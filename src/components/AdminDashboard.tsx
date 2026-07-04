@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Copy, Edit, Trash2, Save, X, Sparkles, Upload, FileJson, ArrowDownToLine, RefreshCw, Layers } from 'lucide-react';
-import { EventModel, EventType, VendorConfig } from '../types';
+import { Plus, Copy, Edit, Trash2, Save, X, Sparkles, Upload, FileJson, ArrowDownToLine, RefreshCw, Layers, Check, Ban, CheckSquare, Inbox } from 'lucide-react';
+import { EventModel, EventType, VendorConfig, VendorApplication } from '../types';
 import { EVENT_TYPE_TEMPLATES, CITIES_LIST, STATES_LIST } from '../data';
 import { EVENT_TYPE_LABELS, EVENT_TYPE_BG_COLORS } from './EventCard';
 
@@ -62,6 +62,62 @@ export default function AdminDashboard({
   const [jsonInputText, setJsonInputText] = useState('');
   const [jsonError, setJsonError] = useState('');
   const [jsonSuccess, setJsonSuccess] = useState('');
+
+  // Vendor Applications State
+  const [applications, setApplications] = useState<VendorApplication[]>([]);
+
+  // Load and sync applications from localStorage
+  const loadApplications = () => {
+    const appsStr = localStorage.getItem('premier_applications');
+    if (appsStr) {
+      try {
+        setApplications(JSON.parse(appsStr));
+      } catch {
+        setApplications([]);
+      }
+    } else {
+      setApplications([]);
+    }
+  };
+
+  useEffect(() => {
+    loadApplications();
+    // Set an interval to poll for any background/tab changes to applications
+    const interval = setInterval(loadApplications, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleUpdateAppStatus = (appId: string, status: 'approved' | 'rejected') => {
+    const appsStr = localStorage.getItem('premier_applications');
+    let currentApps: VendorApplication[] = [];
+    if (appsStr) {
+      try {
+        currentApps = JSON.parse(appsStr);
+      } catch {
+        currentApps = [];
+      }
+    }
+    const updated = currentApps.map(app => app.id === appId ? { ...app, status } : app);
+    setApplications(updated);
+    localStorage.setItem('premier_applications', JSON.stringify(updated));
+  };
+
+  const handleDeleteApp = (appId: string) => {
+    if (window.confirm('Are you sure you want to remove this vendor application?')) {
+      const appsStr = localStorage.getItem('premier_applications');
+      let currentApps: VendorApplication[] = [];
+      if (appsStr) {
+        try {
+          currentApps = JSON.parse(appsStr);
+        } catch {
+          currentApps = [];
+        }
+      }
+      const updated = currentApps.filter(app => app.id !== appId);
+      setApplications(updated);
+      localStorage.setItem('premier_applications', JSON.stringify(updated));
+    }
+  };
 
   // Auto-fill template whenever event type changes during standard creation (optional convenience)
   const applyPresetTemplate = () => {
@@ -760,6 +816,163 @@ export default function AdminDashboard({
 
         </div>
       )}
+
+      {/* VENDOR APPLICATION MANAGER PANEL */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl mt-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-850 pb-4 mb-6 gap-3">
+          <div>
+            <div className="flex items-center space-x-2 text-amber-500 mb-1">
+              <Inbox className="w-4 h-4 animate-pulse" />
+              <span className="text-xs font-semibold uppercase tracking-wider font-mono">Operations Command Center</span>
+            </div>
+            <h3 className="text-lg font-bold text-white tracking-tight">
+              Registered Vendor Space Requests ({applications.length})
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Approve, reject, or purge submitted registration requests from artisans and food truck operators.
+            </p>
+          </div>
+
+          <button
+            onClick={loadApplications}
+            className="self-start sm:self-center text-xs text-amber-400 hover:text-amber-300 font-mono flex items-center gap-1 hover:underline bg-slate-950 px-3.5 py-1.5 rounded-xl border border-slate-850"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Force Sync List</span>
+          </button>
+        </div>
+
+        {applications.length > 0 ? (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {applications.map((app) => (
+              <div 
+                key={app.id} 
+                className={`bg-slate-950 border rounded-xl p-5 relative overflow-hidden transition duration-150 ${
+                  app.status === 'approved' 
+                    ? 'border-emerald-500/30 shadow-md shadow-emerald-500/5' 
+                    : app.status === 'rejected'
+                    ? 'border-rose-500/20 opacity-70'
+                    : 'border-slate-850 hover:border-slate-800'
+                }`}
+              >
+                {/* Status indicator pill top right */}
+                <div className="absolute top-4 right-4 flex items-center space-x-1.5">
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider font-mono ${
+                    app.status === 'approved'
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'
+                      : app.status === 'rejected'
+                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/25'
+                      : 'bg-amber-500/10 text-amber-400 border border-amber-500/25 animate-pulse'
+                  }`}>
+                    {app.status}
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  
+                  {/* Event & Basic Info */}
+                  <div>
+                    <p className="text-[10px] text-amber-500 font-mono uppercase tracking-wider">EVENT CAMPAIGN</p>
+                    <h4 className="text-sm font-bold text-white truncate max-w-[280px]" title={app.eventTitle}>
+                      {app.eventTitle}
+                    </h4>
+                    <p className="text-[10px] text-slate-500 font-mono">{app.eventDate}</p>
+                  </div>
+
+                  {/* Vendor Professional Profile */}
+                  <div className="grid grid-cols-2 gap-4 bg-slate-900/50 p-3 rounded-lg border border-slate-900">
+                    <div>
+                      <p className="text-[9px] text-slate-500 font-mono uppercase">BUSINESS / TRUCK</p>
+                      <p className="text-xs font-bold text-slate-200 truncate">{app.businessName}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-slate-500 font-mono uppercase">SPECIALTY TYPE</p>
+                      <p className="text-[10px] font-mono text-amber-400 uppercase tracking-wide">
+                        {app.vendorType.replace('_', ' ')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-slate-500 font-mono uppercase">CONTACT PERSON</p>
+                      <p className="text-xs text-slate-300 truncate">{app.vendorName}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-slate-500 font-mono uppercase">PHONE NUMBER</p>
+                      <p className="text-xs text-slate-300 font-mono">{app.vendorPhone || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  {/* Vendor contact email */}
+                  <div className="flex items-center space-x-1 text-xs text-slate-400 border-b border-slate-900 pb-2">
+                    <span className="font-semibold text-slate-500">Email:</span>
+                    <a href={`mailto:${app.vendorEmail}`} className="text-amber-400 hover:underline font-mono text-[11px] truncate">
+                      {app.vendorEmail}
+                    </a>
+                  </div>
+
+                  {/* Comments */}
+                  {app.vendorComments && (
+                    <div className="bg-slate-900/40 p-2.5 rounded-lg border border-slate-900 text-[11px] text-slate-400 leading-relaxed italic">
+                      &ldquo;{app.vendorComments}&rdquo;
+                    </div>
+                  )}
+
+                  {/* Actions Bar */}
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-[9px] text-slate-600 font-mono">SUBMITTED: {new Date(app.submittedAt).toLocaleDateString()}</span>
+                    
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleUpdateAppStatus(app.id, 'approved')}
+                        disabled={app.status === 'approved'}
+                        className={`p-1.5 rounded-lg transition text-xs font-semibold flex items-center space-x-1 ${
+                          app.status === 'approved'
+                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 cursor-not-allowed'
+                            : 'bg-slate-900 hover:bg-emerald-950/40 border border-slate-800 hover:border-emerald-900 text-slate-400 hover:text-emerald-400'
+                        }`}
+                        title="Approve registration request"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Approve</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleUpdateAppStatus(app.id, 'rejected')}
+                        disabled={app.status === 'rejected'}
+                        className={`p-1.5 rounded-lg transition text-xs font-semibold flex items-center space-x-1 ${
+                          app.status === 'rejected'
+                            ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20 cursor-not-allowed'
+                            : 'bg-slate-900 hover:bg-rose-950/40 border border-slate-800 hover:border-rose-900 text-slate-400 hover:text-rose-400'
+                        }`}
+                        title="Reject registration request"
+                      >
+                        <Ban className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Reject</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteApp(app.id)}
+                        className="bg-slate-900 hover:bg-rose-950/50 border border-slate-800 hover:border-rose-900 p-1.5 rounded-lg transition text-slate-500 hover:text-rose-400"
+                        title="Delete application from system"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-slate-950 border border-slate-850 rounded-xl space-y-3">
+            <Inbox className="w-10 h-10 text-slate-700 mx-auto" />
+            <h4 className="text-sm font-semibold text-white">No Registration Requests Recorded</h4>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              Vendor application requests will display here in real time as food truck operators submit inquiries on event cards.
+            </p>
+          </div>
+        )}
+      </div>
 
     </div>
   );

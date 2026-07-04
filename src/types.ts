@@ -38,4 +38,27 @@ export interface EventModel {
   };
 }
 
-export type UserRole = 'public' | 'admin';
+export type UserRole = 'public' | 'admin' | 'vendor';
+
+export interface AppUser {
+  email: string;
+  name: string;
+  businessName?: string;
+  role: 'admin' | 'vendor';
+  password?: string;
+}
+
+export interface VendorApplication {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  vendorName: string;
+  businessName: string;
+  vendorType: string;
+  vendorEmail: string;
+  vendorPhone: string;
+  vendorComments?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedAt: string;
+}
